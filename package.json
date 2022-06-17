@@ -1,0 +1,22 @@
+{
+  "name": "eslint-plugin-lang",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "peerDependencies": {
+    "eslint": "*"
+  },
+  "dependencies": {
+    "vue-eslint-parser": "^7.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.2.0",
+    "jest": "^26.0.1"
+  }
+}
