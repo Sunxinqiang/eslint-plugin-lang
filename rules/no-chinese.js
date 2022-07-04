@@ -7,7 +7,7 @@ function hasChinese(value) {
 module.exports = {
     create(context) {
         const message = '{{ str }} 需要国际化'
-        return context.parserServices.defineTemplateBodyVisitor({
+        let templateBodyVisitor = {
             // 标签内文字
             "VText": function (node) {
                 // console.log(node)
@@ -96,6 +96,25 @@ module.exports = {
                 }
                 checkExpression(node.expression);
             },
-        })
+        }
+        let scriptVisitor = {
+            // js里的中文校验
+            Program: function (node) {
+                // String类型的token
+                let strTokens = node.tokens.filter(t => t.type == 'String')
+                strTokens.forEach(token => {
+                    if (hasChinese(token.value)) {
+                        context.report({
+                            node,
+                            message,
+                            data: {
+                                str: token.value,
+                            },
+                        });
+                    }
+                })
+            }
+        }
+        return context.parserServices.defineTemplateBodyVisitor(templateBodyVisitor,scriptVisitor)
     }
 };

@@ -61,6 +61,19 @@ tester.run('no-chinese', rule, {
         '中文 需要国际化',
         '中文 需要国际化',
       ]
+    },
+    {
+      code:
+        `<template>
+          <div></div>
+        </template>
+        <script>
+          let a = '中文'; // 中文
+        </script>
+        `,
+      errors: [
+        `'中文' 需要国际化`,
+      ]
     }
   ]
 })
