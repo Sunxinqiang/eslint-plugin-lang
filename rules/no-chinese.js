@@ -105,7 +105,8 @@ module.exports = {
                 strTokens.forEach(token => {
                     if (hasChinese(token.value)) {
                         context.report({
-                            node,
+                            node: token,
+                            // loc: token.loc,
                             message,
                             data: {
                                 str: token.value,
@@ -113,7 +114,7 @@ module.exports = {
                         });
                     }
                 })
-            }
+            },
         }
         return context.parserServices.defineTemplateBodyVisitor(templateBodyVisitor,scriptVisitor)
     }
