@@ -1,5 +1,4 @@
 const CHINESE_REGEX = /\p{Unified_Ideograph}/u;
-
 function hasChinese(value) {
     return CHINESE_REGEX.test(value);
 }
@@ -10,7 +9,6 @@ module.exports = {
         let templateBodyVisitor = {
             // 标签内文字
             "VText": function (node) {
-                // console.log(node)
                 const { value } = node;
                 if (value && hasChinese(value)) {
                     context.report({
@@ -22,23 +20,6 @@ module.exports = {
                     });
                 }
             },
-            // 普通属性的值 <div a="中文"></div>
-            // "VAttribute[value!=null]": function (node) {
-            //     // console.log(node)
-            //     if (!node.value) {
-            //         return
-            //     }
-            //     const { value } = node.value;
-            //     if (value && hasChinese(value)) {
-            //         context.report({
-            //             node,
-            //             message,
-            //             data: {
-            //                 str: value,
-            //             },
-            //         });
-            //     }
-            // },
             // 普通属性的值 <div a="中文"></div>
             "VLiteral": function (node) {
                 if (!node.value) {
@@ -96,6 +77,70 @@ module.exports = {
                 }
                 checkExpression(node.expression);
             },
+            VElement: function (node) {
+                if (!node.tokens) {
+                    return
+                }
+                let tokensCopy = [...node.tokens]
+                let styleTokens = []
+                const getStartIndex = (tokens) => tokens.findIndex(token => token.type =='HTMLTagOpen' && token.value == 'style')
+                const getEndIndex = (tokens) => tokens.findIndex(token => token.type =='HTMLEndTagOpen' && token.value == 'style')
+                // 获取style标签内的所有token
+                while(tokensCopy.length) {
+                    // console.log(tokensCopy.length)
+                    let start = getStartIndex(tokensCopy)
+                    let end = getEndIndex(tokensCopy)
+                    if (start == -1 || end == -1) {
+                        tokensCopy = []
+                    } else {
+                        styleTokens.push(...tokensCopy.slice(start, end+1))
+                        tokensCopy = tokensCopy.slice(end+1)
+                    }
+                }
+                // console.log(styleTokens)
+                // 排除单行注释
+                let containSingle = str => {
+                    // 删除 包含在引号里面的内容 "aa//";//bb => ;//bb
+                    str = str.replace(/("|')[\w\W]*?\1/g, '')
+                    return /^[\w\W]*\/\/[\w\W]*$/.test(str)
+                }
+                let styleTokensCopy = JSON.parse(JSON.stringify(styleTokens))
+                let index = styleTokensCopy.findIndex(token => containSingle(token.value))
+                while(index != -1) {
+                    let comment =  styleTokensCopy[index].value
+                            .replace(/("|')[\w\W]*?\1/g, '')
+                            .replace(/^[\w\W]*\/\//, '//')
+                    // 删除注释部分
+                    styleTokensCopy[index].value = styleTokensCopy[index].value.replace(comment, '')
+                    // 删除和注释同行的元素，非注释token本身
+                    styleTokensCopy = styleTokensCopy.filter(token => {
+                        if (token==styleTokensCopy[index]) {
+                            return true
+                        }
+                        // token{ loc: { start: { line, column }, end: { line, column } } }
+                        if (token.loc.start.line == styleTokensCopy[index].loc.start.line
+                            && token.loc.start.column > styleTokensCopy[index].loc.end.column) {
+                                return false
+                            }
+                        return true
+                    })
+                    index = styleTokensCopy.findIndex(token => containSingle(token.value))
+                }
+                // 开除多行注释
+                // console.log(styleTokensCopy)
+
+                styleTokensCopy.forEach(token => {
+                    if (hasChinese(token.value)) {
+                        context.report({
+                            node: token,
+                            message,
+                            data: {
+                                str: token.value,
+                            },
+                        });
+                    }
+                })
+            },
         }
         let scriptVisitor = {
             // js里的中文校验
@@ -116,6 +161,20 @@ module.exports = {
                 })
             },
         }
+        // console.log(context.getSourceCode().getText())
+        // less.render(`
+        //     .a {
+        //         color: red; // aa
+        //         /**
+        //          * haha
+        //         */
+        //     }
+        // `).then(res => {
+        //     console.log(res, res.css)
+        // }).catch(err => {
+        //     console.error(err)
+        // })
+        // console.log(less.render)
         return context.parserServices.defineTemplateBodyVisitor(templateBodyVisitor,scriptVisitor)
     }
 };
