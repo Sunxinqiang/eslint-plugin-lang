@@ -6,8 +6,8 @@
   "scripts": {
     "test": "jest --coverage"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["eslint", "vue", "custom", "chinese", "plugin"],
+  "author": "Sunxinqiang",
   "license": "ISC",
   "peerDependencies": {
     "eslint": "*"
