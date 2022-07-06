@@ -1,35 +1,13 @@
 # eslint-plugin-lang
 
-`eslint-plugin-lang`
+eslint插件 ，校验vue文件内容是否含有中文
 
 ## 使用
 
 - 安装
 
-```
-npm install
-```
-
-#### 开发引入
-- 包文件夹中运行
-
-```
-npm link
-```
-
-- 项目文件夹运行，链接到 `eslint-plugin-lang`
-
-```
-npm link "eslint-plugin-lang"
-```
-
-#### 实际引入
-```json
-{
-  "devDependencies": {
-    "eslint-plugin-lang": "git+ssh://xxx.git"
-  }
-}
+```shell
+npm install eslint-plugin-lang
 ```
 
 - 引入
@@ -54,7 +32,7 @@ module.exports = {
 ```
 
 ## rules
-- no-chinese：检查template里的中文（jsx里的不能检测）
+- no-chinese：检查.vue里的中文
 > 如有误检测 请使用 `<!-- eslint-disable-next-line lang/no-chinese -->`
 ```html
 <template>
@@ -68,4 +46,12 @@ module.exports = {
   <div :attribute="false || '中文'"></div>
   <div :attribute="['中文']"></div>
 </template>
+<script>
+  let a = "中文"
+</script>
+<style>
+  .a::before {
+    content: "中文";
+  }
+</style>
 ```
