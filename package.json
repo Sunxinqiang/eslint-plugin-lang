@@ -1,12 +1,18 @@
 {
   "name": "eslint-plugin-lang",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "The ESLint plugin for validate chinese in .vue file",
   "main": "index.js",
   "scripts": {
     "test": "jest --coverage"
   },
-  "keywords": ["eslint", "vue", "custom", "chinese", "plugin"],
+  "keywords": [
+    "eslint",
+    "vue",
+    "custom",
+    "chinese",
+    "plugin"
+  ],
   "author": "Sunxinqiang",
   "license": "ISC",
   "peerDependencies": {
