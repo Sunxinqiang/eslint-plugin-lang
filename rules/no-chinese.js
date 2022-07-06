@@ -77,59 +77,21 @@ module.exports = {
                 }
                 checkExpression(node.expression);
             },
+            /**
+             * 所有节点
+             * @param {*} node
+             * @returns
+             */
             VElement: function (node) {
                 if (!node.tokens) {
                     return
                 }
-                let tokensCopy = [...node.tokens]
-                let styleTokens = []
-                const getStartIndex = (tokens) => tokens.findIndex(token => token.type =='HTMLTagOpen' && token.value == 'style')
-                const getEndIndex = (tokens) => tokens.findIndex(token => token.type =='HTMLEndTagOpen' && token.value == 'style')
-                // 获取style标签内的所有token
-                while(tokensCopy.length) {
-                    // console.log(tokensCopy.length)
-                    let start = getStartIndex(tokensCopy)
-                    let end = getEndIndex(tokensCopy)
-                    if (start == -1 || end == -1) {
-                        tokensCopy = []
-                    } else {
-                        styleTokens.push(...tokensCopy.slice(start, end+1))
-                        tokensCopy = tokensCopy.slice(end+1)
-                    }
-                }
-                // console.log(styleTokens)
-                // 排除单行注释
-                let containSingle = str => {
-                    // 删除 包含在引号里面的内容 "aa//";//bb => ;//bb
-                    str = str.replace(/("|')[\w\W]*?\1/g, '')
-                    return /^[\w\W]*\/\/[\w\W]*$/.test(str)
-                }
-                let styleTokensCopy = JSON.parse(JSON.stringify(styleTokens))
-                let index = styleTokensCopy.findIndex(token => containSingle(token.value))
-                while(index != -1) {
-                    let comment =  styleTokensCopy[index].value
-                            .replace(/("|')[\w\W]*?\1/g, '')
-                            .replace(/^[\w\W]*\/\//, '//')
-                    // 删除注释部分
-                    styleTokensCopy[index].value = styleTokensCopy[index].value.replace(comment, '')
-                    // 删除和注释同行的元素，非注释token本身
-                    styleTokensCopy = styleTokensCopy.filter(token => {
-                        if (token==styleTokensCopy[index]) {
-                            return true
-                        }
-                        // token{ loc: { start: { line, column }, end: { line, column } } }
-                        if (token.loc.start.line == styleTokensCopy[index].loc.start.line
-                            && token.loc.start.column > styleTokensCopy[index].loc.end.column) {
-                                return false
-                            }
-                        return true
-                    })
-                    index = styleTokensCopy.findIndex(token => containSingle(token.value))
-                }
-                // 开除多行注释
-                // console.log(styleTokensCopy)
+                let styleTokens = getStyleTokens(node.tokens)
+                styleTokens = getTokensNoSingComment(styleTokens)
+                styleTokens = getTokensNoMultiComment(styleTokens)
 
-                styleTokensCopy.forEach(token => {
+                // 遍历检查中文
+                styleTokens.forEach(token => {
                     if (hasChinese(token.value)) {
                         context.report({
                             node: token,
@@ -161,20 +123,101 @@ module.exports = {
                 })
             },
         }
-        // console.log(context.getSourceCode().getText())
-        // less.render(`
-        //     .a {
-        //         color: red; // aa
-        //         /**
-        //          * haha
-        //         */
-        //     }
-        // `).then(res => {
-        //     console.log(res, res.css)
-        // }).catch(err => {
-        //     console.error(err)
-        // })
-        // console.log(less.render)
         return context.parserServices.defineTemplateBodyVisitor(templateBodyVisitor,scriptVisitor)
     }
 };
+
+/**
+ * 获取所有style Tokens
+ * @param {Array} tokens token数组
+ * @returns {Array}
+ */
+function getStyleTokens (tokens) {
+    let res = []
+    const getStartIndex = (tokens) => tokens.findIndex(token => token.type =='HTMLTagOpen' && token.value == 'style')
+    const getEndIndex = (tokens) => tokens.findIndex(token => token.type =='HTMLEndTagOpen' && token.value == 'style')
+    let tokensCopy = [...tokens]
+    // 获取style标签内的所有token
+    while(tokensCopy.length) {
+        let start = getStartIndex(tokensCopy)
+        let end = getEndIndex(tokensCopy)
+        if (start == -1 || end == -1) {
+            tokensCopy = []
+        } else {
+            res.push(...tokensCopy.slice(start, end+1))
+            tokensCopy = tokensCopy.slice(end+1)
+        }
+    }
+    return res
+}
+
+/**
+ * 排除token里的单行注释，一个token部分含有注释，则删除注释部分
+ * @param {Array} tokens token数组
+ * @returns {Array}
+ */
+function getTokensNoSingComment (tokens) {
+    let tokensCopy = JSON.parse(JSON.stringify(tokens))
+    let index = tokensCopy.findIndex(token => noQuotContain(token.value, '//'))
+    while(index != -1) {
+        let comment =  tokensCopy[index].value
+                .replace(/("|')[\w\W]*?\1/g, '')
+                .replace(/^[\w\W]*\/\//, '//')
+        // 删除注释部分
+        tokensCopy[index].value = tokensCopy[index].value.replace(comment, '')
+        // 删除和注释同行的元素，非注释token本身
+        tokensCopy = tokensCopy.filter(token => {
+            if (token==tokensCopy[index]) {
+                return true
+            }
+            // token{ loc: { start: { line, column }, end: { line, column } } }
+            if (token.loc.start.line == tokensCopy[index].loc.start.line
+                && token.loc.start.column > tokensCopy[index].loc.end.column) {
+                    return false
+                }
+            return true
+        })
+        index = tokensCopy.findIndex(token => noQuotContain(token.value, '//'))
+    }
+    return tokensCopy
+}
+/**
+ * 排除token里的多行注释，一个token部分含有注释，则删除注释部分
+ * @param {Array} tokens token数组
+ * @returns {Array}
+ */
+function getTokensNoMultiComment (tokens) {
+    let tokensCopy = JSON.parse(JSON.stringify(tokens))
+    let indexStart = tokensCopy.findIndex(token => noQuotContain(token.value, '/*'))
+    let indexEnd = tokensCopy.findIndex(token => noQuotContain(token.value, '*/'))
+    while(indexStart != -1 && indexEnd != -1) {
+        let comment =  tokensCopy[indexStart].value
+                .replace(/("|')[\w\W]*?\1/g, '')
+                .replace(/^[\w\W]*\/\*/, '/*')
+        // 删除注释部分
+        tokensCopy[indexStart].value = tokensCopy[indexStart].value.replace(comment, '')
+        // 删除和注释同行的元素，非注释token本身
+        tokensCopy[indexEnd].value = tokensCopy[indexEnd].value.replace(/^[\w\W]*?\*\//, '')
+        // 删除中间的元素
+        if (indexStart != indexEnd) {
+            tokensCopy.splice(indexStart+1, indexEnd-indexStart-1)
+        }
+        indexStart = tokensCopy.findIndex(token => noQuotContain(token.value, '/*'))
+        indexEnd = tokensCopy.findIndex(token => noQuotContain(token.value, '*/'))
+    }
+    return tokensCopy
+}
+
+/**
+ * 是否包含指定字符串，非引号内包含
+ * @param {*} str
+ * @param {string} symbol 符号字符串
+ */
+function noQuotContain (str, symbol) {
+    // 删除 包含在引号里面的内容 "aa//";//bb => ;//bb
+    str = str.replace(/("|')[\w\W]*?\1/g, '')
+    // 正则里有特殊意义的符号 都转义一下，/这个不用转义，会自动转
+    let encodeSymbol = symbol.replace(/([*.\\^$+?:=<>!|])/g, '\\$1')
+    let reg = new RegExp(`^[\\w\\W]*${encodeSymbol}[\\w\\W]*$`)
+    return reg.test(str)
+}

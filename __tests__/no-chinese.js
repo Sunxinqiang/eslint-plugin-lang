@@ -86,6 +86,9 @@ tester.run('no-chinese', rule,
             body::before {
               content: "哈哈五";// 哈哈六
             }
+            /*
+            * 哈哈七
+            */ .a {color:red; &::before{content: "哈哈八";}}//哈哈九
           </style>
         `,
         errors: [
@@ -93,6 +96,7 @@ tester.run('no-chinese', rule,
           `'哈哈二' 需要国际化`,
           `"哈哈四"; 需要国际化`,
           `"哈哈五"; 需要国际化`,
+          `"哈哈八";}} 需要国际化`,
         ]
       }
     ]
